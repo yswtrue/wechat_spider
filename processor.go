@@ -128,6 +128,7 @@ func (p *BaseProcessor) processPages() (err error) {
 		return stacktrace.Propagate(err, "Failed get page response")
 	}
 	bs, _ := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
 	str := replacer.Replace(string(bs))
 	result := urlRegex.FindAllString(str, -1)
 	if len(result) < 1 {
