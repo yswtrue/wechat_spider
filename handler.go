@@ -1,11 +1,13 @@
 package wechat_spider
 
 import (
+	"bytes"
+	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"reflect"
-	"spiderx/utils"
 	"strings"
 
 	"github.com/elazarl/goproxy"
@@ -21,7 +23,7 @@ func ProxyHandle(proc Processor) func(resp *http.Response, ctx *goproxy.ProxyCtx
 		if ctx.Req.URL.Path == `/mp/getmasssendmsg` && !strings.Contains(ctx.Req.URL.RawQuery, `f=json`) {
 			var data []byte
 			var err error
-			data, resp.Body, err = utils.CopyReader(resp.Body)
+			data, resp.Body, err = copyReader(resp.Body)
 			if err != nil {
 				return resp
 			}
@@ -39,4 +41,16 @@ func ProxyHandle(proc Processor) func(resp *http.Response, ctx *goproxy.ProxyCtx
 		return resp
 	}
 
+}
+
+// One of the copies, say from b to r2, could be avoided by using a more
+func copyReader(b io.ReadCloser) (bs []byte, r2 io.ReadCloser, err error) {
+	var buf bytes.Buffer
+	if _, err = buf.ReadFrom(b); err != nil {
+		return nil, b, err
+	}
+	if err = b.Close(); err != nil {
+		return nil, b, err
+	}
+	return buf.Bytes(), ioutil.NopCloser(bytes.NewReader(buf.Bytes())), nil
 }

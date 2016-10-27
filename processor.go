@@ -2,15 +2,13 @@ package wechat_spider
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"regexp"
 	"strings"
 	"time"
-
-	"net/http"
 
 	"github.com/palantir/stacktrace"
 )
@@ -79,8 +77,9 @@ func (p *BaseProcessor) Urls() []string {
 }
 
 func (p *BaseProcessor) Output() {
-	bs, _ := json.Marshal(p.Urls())
-	fmt.Println("result => ", string(bs))
+	fmt.Println("result => [")
+	fmt.Println(strings.Join(p.Urls(), ","))
+	fmt.Println("]")
 }
 
 //Parse the html
