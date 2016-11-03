@@ -5,7 +5,7 @@
 # The encode may be gb18030 to varing operation system
 # Download ActivePython-3.4.3.2-win64-x64.msi and install
 # Use pypm to install pyautogui and requests
-# Run :  python pc_client.py
+# Run :  python win_client.py
 
 import win32gui
 import win32api
