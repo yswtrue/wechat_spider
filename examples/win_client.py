@@ -48,7 +48,7 @@ def process():
 
    biz = gen()
 
-   pyautogui.typewrite(" http://mp.weixin.qq.com/mp/getmasssendmsg?__biz=%s==#wechat_webview_type=1&wechat_redirect" % biz, interval=0)
+   pyautogui.typewrite(" http://mp.weixin.qq.com/mp/getmasssendmsg?__biz=%s#wechat_webview_type=1&wechat_redirect" % biz, interval=0)
 
    pyautogui.keyDown('enter')
    pyautogui.moveTo(rel_link[0], rel_link[1], duration=1)
