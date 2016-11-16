@@ -1,6 +1,8 @@
 # wechat_spider
 微信公众号爬虫  (只需设置代理, 一键可以爬取指定公众号的所有历史文章)
 
+FAQ [FAQ][3]
+
 代理服务端: 通过Man-In-Middle 代理方式获取微信服务端返回, 自动模拟请求自动分页,抓取对应点击的所有历史文章
 
 客户端:   暂时支持 win,macos,android三大平台,  iphone由于https证书问题后续再支持
@@ -39,6 +41,7 @@ func main() {
 
 [1]: https://github.com/sundy-li/wechat_spider/blob/master/examples/simple_server.go
 [2]: https://github.com/sundy-li/wechat_spider/blob/master/examples/custom_output_server.go
+[3]: https://github.com/sundy-li/wechat_spider/blob/master/FAQ.md
 
 - 微信会屏蔽频繁的请求,所以历史文章的翻页请求调用了Sleep()方法, 默认每个请求休眠50ms,可以根据实际情况自定义Processor覆盖此方法
 
