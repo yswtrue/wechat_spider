@@ -12,6 +12,12 @@ FAQ
     爬虫是稳定的,  基于中间人攻击,完全模拟人的行为, 目前测试来看,一个测试号1s可以爬完一个公众号的内容,频率可以自定义控制.
 
 
+不太明白设置代理是什么含义？具体应怎样设置？
+    
+    这个问题说明你可能还不清楚 中间人攻击的原理, 可以查看相关资料了解下
+    windows设置全局代理: http://jingyan.baidu.com/article/a378c960843744b32928307e.html
+    android设置全局代理: https://www.zhihu.com/question/21474174
+
 我不会go语言,如何使用你的爬虫框架?
     想简单使用的话,可以装个go环境,跑一下示例程序,想定制的化,其实核心代码不过200行, 这个框架只是核心组件的实现, 没有做到工程化, 需要工程定制请稍微学习下Go语言即可
 
@@ -21,7 +27,14 @@ FAQ
 
 批量爬虫的bizs如何获取到?
 
-    biz就是公众号的唯一id, 你可以从公众号任意一篇文章的url参数中获取, 也可以从清博,微信sogou中自动获取, 放在数据库轮询或者做成发号器服务   
+    biz就是公众号的唯一id, 你可以从公众号任意一篇文章的url参数中获取, 可以从历史文章列表的链接获取 也可以从清博,微信sogou中自动获取, 放在数据库轮询或者做成发号器服务   
+    
+
+通过pyautogui.position() 瞄点设置 first_ret, rel_link 坐标。这里也不是很明白需要如何操作。
+    
+    先参考代码: https://github.com/sundy-li/wechat_spider/blob/master/examples/win_client.py
+    这个是windows客户端批量请求公众号历史文章链接的代码的逻辑,   原理是通过win32的api获取对应的句柄,操作鼠标移动坐标模拟点击url,服务端进行报文截取. 理清这个逻辑之后, 这个pyautogui.position() 其实就是  pyautogui 的瞄点api,具体可以看pyautogui文档
+    
 
 批量爬虫在android客户端可以实现吗?
 
