@@ -36,7 +36,7 @@ func main() {
 }
 ```
 
-- 自定义输出源,实现Processor接口的Output方法即可, [custom_output_server.go][2]
+- 上面贴的是一个精简的服务端,拦截客户端请求,将微信文章url打印到终端,如果想自定义输出源,可以实现Processor接口的Output方法,参考  [custom_output_server.go][2]
 
 
 [1]: https://github.com/sundy-li/wechat_spider/blob/master/examples/simple_server.go
