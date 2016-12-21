@@ -10,10 +10,8 @@ FAQ
 你这个爬虫稳定吗, 会不会被微信封掉吗,效率怎么样?
 
     爬虫是稳定的,  基于中间人攻击,完全模拟人的行为, 目前测试来看,一个测试号1s可以爬完一个公众号的内容,频率可以自定义控制.
-
-
 不太明白设置代理是什么含义？具体应怎样设置？
-    
+​    
     这个问题说明你可能还不清楚 中间人攻击的原理, 可以查看相关资料了解下
     windows设置全局代理: http://jingyan.baidu.com/article/a378c960843744b32928307e.html
     android设置全局代理: https://www.zhihu.com/question/21474174
@@ -23,18 +21,18 @@ FAQ
 
 爬虫可以输出到队列,数据库,文件等吗?
 
-    可以,请参考 https://github.com/sundy-li/wechat_spider/blob/master/examples/custom_output_server.go
+    可以自定义输出,请参考 https://github.com/sundy-li/wechat_spider/blob/master/examples/custom_output_server.go
 
 批量爬虫的bizs如何获取到?
 
     biz就是公众号的唯一id, 你可以从公众号任意一篇文章的url参数中获取, 可以从历史文章列表的链接获取 也可以从清博,微信sogou中自动获取, 放在数据库轮询或者做成发号器服务   
-    
+​    
 
 通过pyautogui.position() 瞄点设置 first_ret, rel_link 坐标。这里也不是很明白需要如何操作。
-    
+​    
     先参考代码: https://github.com/sundy-li/wechat_spider/blob/master/examples/win_client.py
-    这个是windows客户端批量请求公众号历史文章链接的代码的逻辑,   原理是通过win32的api获取对应的句柄,操作鼠标移动坐标模拟点击url,服务端进行报文截取. 理清这个逻辑之后, 这个pyautogui.position() 其实就是  pyautogui 的瞄点api,具体可以看pyautogui文档
-    
+    这个是windows客户端批量请求公众号历史文章链接的代码的逻辑,原理是通过win32的api获取对应的句柄,来发送url给微信,操作鼠标移动坐标模拟点击url,服务端进行报文截取. 理清这个逻辑之后, 这个pyautogui.position() 其实就是  pyautogui 的瞄点api,具体可以看pyautogui文档
+
 
 批量爬虫在android客户端可以实现吗?
 
@@ -43,14 +41,11 @@ FAQ
 
 这个爬虫还有什么缺陷
 
-    暂时可能不支持https的代理, 如iphone微信使用的是https, 另外还不能做到自动关注公众号, 有好的实现思路的请和我沟通
-
-我可以贡献代码吗?
-
-    毫无疑问, 非常欢迎,可以先提个issues沟通, 
+    还不能做到很智能的自动关注公众号,目前是基于adbshell来做,存在不稳定因素,暂未开源, 有好的实现思路的请和我沟通
 
 
+截止到目前(2016年12月21日, 我们基于这个框架开发的微信公众号爬虫 单机器已经爬取100w+公众号的实时数据了,还没出现不稳定的情况,  如果您想支持我们持续维护此项目, 那就请我喝一杯咖啡吧~
 
-
-
+![支持一下](donate.jpg)
+    
 
