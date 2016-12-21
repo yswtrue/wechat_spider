@@ -11,9 +11,11 @@ import (
 
 func main() {
 	var port = "8899"
-	proxy := goproxy.NewProxyHttpServer()
 	//open it see detail logs
-	// wechat_spider.Verbose = true
+	wechat_spider.Verbose = true
+
+	proxy := goproxy.NewProxyHttpServer()
+	proxy.OnRequest().HandleConnect(goproxy.AlwaysMitm)
 	proxy.OnResponse().DoFunc(
 		wechat_spider.ProxyHandle(wechat_spider.NewBaseProcessor()),
 	)

@@ -20,6 +20,7 @@ var (
 
 func ProxyHandle(proc Processor) func(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
 	return func(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
+		Logger.Println("Hijacked of", ctx.Req.URL.RequestURI())
 		if ctx.Req.URL.Path == `/mp/getmasssendmsg` && !strings.Contains(ctx.Req.URL.RawQuery, `f=json`) {
 			var data []byte
 			var err error
