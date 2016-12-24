@@ -1,5 +1,4 @@
 # wechat_spider
-----------------------------------------------------------------------------------
 
 
 微信公众号爬虫 (基于中间人攻击的爬虫核心实现,支持批量爬取公众号所有历史文章)
@@ -22,26 +21,17 @@ http && https,  https需要导入certs文件夹的goproxy证书,并且添加受�
 package main
 
 import (
-	"log"
-	"net/http"
-
-	"github.com/sundy-li/wechat_spider"
-
-	"github.com/elazarl/goproxy"
+	spider "github.com/sundy-li/wechat_spider"
 )
 
 func main() {
 	var port = "8899"
-	proxy := goproxy.NewProxyHttpServer()
-	//open it see detail logs
-	// wechat_spider.Verbose = true
-	proxy.OnResponse().DoFunc(
-		wechat_spider.ProxyHandle(wechat_spider.NewBaseProcessor()),
-	)
-	log.Println("server will at port:" + port)
-	log.Fatal(http.ListenAndServe(":"+port, proxy))
-
+	// open it see detail logs
+	spider.Verbose = true
+	spider.Regist(spider.NewBaseProcessor())
+	spider.Run(port)
 }
+
 ```
 
 - 上面贴的是一个精简的服务端,拦截客户端请求,将微信文章url打印到终端,如果想自定义输出源,可以实现Processor接口的Output方法, 参考  [custom_output_server.go][2]
