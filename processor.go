@@ -18,7 +18,9 @@ import (
 
 type Processor interface {
 	// Core method
-	Process(resp *http.Response, ctx *goproxy.ProxyCtx) error
+	Process(resp *http.Response, ctx *goproxy.ProxyCtx) ([]byte, error)
+	// NextBiz
+	NextBiz(currentBiz string) string
 	// Result urls
 	Result() []*WechatResult
 	// Output
@@ -79,32 +81,31 @@ func (p *BaseProcessor) init(req *http.Request, data []byte) (err error) {
 	fmt.Println("Running a new wechat processor, please wait...")
 	return nil
 }
-func (p *BaseProcessor) Process(resp *http.Response, ctx *goproxy.ProxyCtx) (err error) {
+func (p *BaseProcessor) Process(resp *http.Response, ctx *goproxy.ProxyCtx) (data []byte, err error) {
 
 	var buf bytes.Buffer
 	if _, err = buf.ReadFrom(resp.Body); err != nil {
-		return err
+		return
 	}
 	if err = resp.Body.Close(); err != nil {
-		return err
+		return
 	}
 
-	data := buf.Bytes()
-	resp.Body = ioutil.NopCloser(bytes.NewReader(data))
-
+	data = buf.Bytes()
 	if err = p.init(ctx.Req, data); err != nil {
-		return err
+		return
 	}
 
 	if err = p.processMain(); err != nil {
-		return err
+		return
 	}
 
 	if rootConfig.AutoScroll {
 		if err = p.processPages(); err != nil {
-			return err
+			return
 		}
 	}
+
 	//gen id
 	for _, r := range p.result {
 		r._URL, _ = url.Parse(r.Url)
@@ -119,8 +120,11 @@ func (p *BaseProcessor) Process(resp *http.Response, ctx *goproxy.ProxyCtx) (err
 			}
 		}
 	}
+	return
+}
 
-	return nil
+func (p *BaseProcessor) NextBiz(currentBiz string) string {
+	return ""
 }
 
 func (p *BaseProcessor) Sleep() {
@@ -259,7 +263,7 @@ func (p *BaseProcessor) genStatUrl(mid string) string {
 }
 
 func (P *BaseProcessor) logf(format string, msg ...interface{}) {
-	if Verbose {
+	if rootConfig.Verbose {
 		Logger.Printf(format, msg...)
 	}
 }

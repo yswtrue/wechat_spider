@@ -1,17 +1,20 @@
 package wechat_spider
 
 import (
+	"bytes"
+	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"reflect"
+	"strings"
 
 	"github.com/elazarl/goproxy"
 )
 
 var (
-	Verbose = false
-	Logger  = log.New(os.Stderr, "", log.LstdFlags)
+	Logger = log.New(os.Stderr, "", log.LstdFlags)
 )
 
 func ProxyHandle(proc Processor) func(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
@@ -19,7 +22,7 @@ func ProxyHandle(proc Processor) func(resp *http.Response, ctx *goproxy.ProxyCtx
 		if resp.StatusCode != 200 {
 			return resp
 		}
-		if Verbose {
+		if rootConfig.Verbose {
 			Logger.Println("Hijacked of", ctx.Req.URL.RequestURI())
 		}
 		if ctx.Req.URL.Path == `/mp/getmasssendmsg` || (ctx.Req.URL.Path == `/mp/profile_ext` && ctx.Req.URL.Query().Get("action") == "home") {
@@ -28,10 +31,21 @@ func ProxyHandle(proc Processor) func(resp *http.Response, ctx *goproxy.ProxyCtx
 			t := reflect.TypeOf(proc)
 			v := reflect.New(t.Elem())
 			p := v.Interface().(Processor)
-			err = p.Process(resp, ctx)
+			data, err := p.Process(resp, ctx)
 			if err != nil {
 				Logger.Println(err.Error())
 			}
+
+			var buf = bytes.NewBuffer(data)
+			//Auto location
+			curBiz := ctx.Req.URL.Query().Get("__biz")
+			nextBiz := p.NextBiz(curBiz)
+			if nextBiz != "" {
+				nextUrl := strings.Replace(ctx.Req.URL.RequestURI(), curBiz, nextBiz, -1)
+				buf.WriteString(fmt.Sprintf(`<script>setTimeout(function(){window.location.href="%s";},2000);</script>`, nextUrl))
+			}
+			resp.Body = ioutil.NopCloser(bytes.NewReader(buf.Bytes()))
+
 			go func() {
 				p.Output()
 			}()

@@ -12,7 +12,9 @@ import (
 func main() {
 	var port = "8899"
 	// open it see detail logs
-	spider.Verbose = true
+	spider.InitConfig(&spider.Config{
+		Verbose: false,
+	})
 	spider.Regist(&CustomProcessor{})
 	spider.Run(port)
 
@@ -26,8 +28,8 @@ type CustomProcessor struct {
 func (c *CustomProcessor) Output() {
 	// You can write the result to files
 	f, _ := os.OpenFile("result.jsons", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0660)
-	for _, u := range c.Urls() {
-		resp, err := http.Get(u)
+	for _, result := range c.Result() {
+		resp, err := http.Get(result.Url)
 		if err != nil {
 			println(err.Error())
 			continue
