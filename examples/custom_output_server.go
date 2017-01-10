@@ -1,13 +1,13 @@
 package main
 
 import (
+	"math/rand"
+
 	spider "github.com/sundy-li/wechat_spider"
 )
 
 func main() {
 	var port = "8899"
-	// open it see detail logs
-	spider.Verbose = true
 	spider.Regist(&CustomProcessor{})
 	spider.Run(port)
 
@@ -20,6 +20,16 @@ type CustomProcessor struct {
 
 func (c *CustomProcessor) Output() {
 	// Just print the length of result urls
-	println("result urls size =>", len(c.Urls()))
+	println("result urls size =>", len(c.Result()))
 	// You can dump the get the html from urls and save to your database
 }
+
+// NextBiz hijack the script, set the location to next url after 2 seconds
+func (c *CustomProcessor) NextBiz(currentBiz string) string {
+	// Random select
+	return _bizs[rand.Intn(len(_bizs))]
+}
+
+var (
+	_bizs = []string{"MzAwODI2OTA1MA==", "MzA5NDk4ODI4Mw==", "MjM5MjEyOTEyMQ=="}
+)

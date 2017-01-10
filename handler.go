@@ -2,7 +2,7 @@ package wechat_spider
 
 import (
 	"bytes"
-	"io"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -14,44 +14,43 @@ import (
 )
 
 var (
-	Verbose = false
-	Logger  = log.New(os.Stderr, "", log.LstdFlags)
+	Logger = log.New(os.Stderr, "", log.LstdFlags)
 )
 
 func ProxyHandle(proc Processor) func(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
 	return func(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
-		Logger.Println("Hijacked of", ctx.Req.URL.RequestURI())
-		if ctx.Req.URL.Path == `/mp/getmasssendmsg` && !strings.Contains(ctx.Req.URL.RawQuery, `f=json`) {
-			var data []byte
+		if resp.StatusCode != 200 {
+			return resp
+		}
+		if rootConfig.Verbose {
+			Logger.Println("Hijacked of", ctx.Req.URL.RequestURI())
+		}
+		if ctx.Req.URL.Path == `/mp/getmasssendmsg` || (ctx.Req.URL.Path == `/mp/profile_ext` && ctx.Req.URL.Query().Get("action") == "home") {
+			//&& !strings.Contains(ctx.Req.URL.RawQuery, `f=json`)
 			var err error
-			data, resp.Body, err = copyReader(resp.Body)
-			if err != nil {
-				return resp
-			}
 			t := reflect.TypeOf(proc)
 			v := reflect.New(t.Elem())
 			p := v.Interface().(Processor)
+			data, err := p.Process(resp, ctx)
+			if err != nil {
+				Logger.Println(err.Error())
+			}
+
+			var buf = bytes.NewBuffer(data)
+			//Auto location
+			curBiz := ctx.Req.URL.Query().Get("__biz")
+			nextBiz := p.NextBiz(curBiz)
+			if nextBiz != "" {
+				nextUrl := strings.Replace(ctx.Req.URL.RequestURI(), curBiz, nextBiz, -1)
+				buf.WriteString(fmt.Sprintf(`<script>setTimeout(function(){window.location.href="%s";},2000);</script>`, nextUrl))
+			}
+			resp.Body = ioutil.NopCloser(bytes.NewReader(buf.Bytes()))
+
 			go func() {
-				err = p.Process(ctx.Req, data)
-				if err != nil {
-					Logger.Println(err.Error())
-				}
 				p.Output()
 			}()
 		}
 		return resp
 	}
 
-}
-
-// One of the copies, say from b to r2, could be avoided by using a more
-func copyReader(b io.ReadCloser) (bs []byte, r2 io.ReadCloser, err error) {
-	var buf bytes.Buffer
-	if _, err = buf.ReadFrom(b); err != nil {
-		return nil, b, err
-	}
-	if err = b.Close(); err != nil {
-		return nil, b, err
-	}
-	return buf.Bytes(), ioutil.NopCloser(bytes.NewReader(buf.Bytes())), nil
 }
