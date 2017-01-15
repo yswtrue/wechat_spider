@@ -6,9 +6,9 @@ import (
 
 func main() {
 	var port = "8899"
-	// open it see detail logs
 	spider.InitConfig(&spider.Config{
-		Verbose: false,
+		Verbose:    false, // Open to see detail logs
+		AutoScroll: false, // Open to crawl scroll pages
 	})
 	spider.Regist(spider.NewBaseProcessor())
 	spider.Run(port)

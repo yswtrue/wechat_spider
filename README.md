@@ -1,7 +1,7 @@
 # wechat_spider
 
 
-微信公众号爬虫 (基于中间人攻击的爬虫核心实现,支持批量爬取公众号所有历史文章)
+微信公众号爬虫 (支持全自动化批量爬取微信公众号所有文章 Go语言实现)
 
 
 ## 注意
@@ -72,3 +72,6 @@ func main() {
   1. 要求安装windows +  微信pc版本 + ActivePython3 + autogui, 设置windows下全局代理对应 代理服务端的服务和端口
   2. 修改 win_client.py 中的 bizs参数, 通过pyautogui.position() 瞄点设置 first_ret, rel_link 坐标
   3. 在examples目录下面, 执行 python win_client.py 将自动生成链接,模拟点击
+
+## TODO
+* 点赞数,阅读数,评论数等文章指标
