@@ -36,6 +36,8 @@ func ProxyHandle(proc Processor) func(resp *http.Response, ctx *goproxy.ProxyCtx
 				Logger.Println(err.Error())
 			}
 
+			go p.Output()
+
 			var buf = bytes.NewBuffer(data)
 			//Auto location
 			curBiz := ctx.Req.URL.Query().Get("__biz")
@@ -45,10 +47,6 @@ func ProxyHandle(proc Processor) func(resp *http.Response, ctx *goproxy.ProxyCtx
 				buf.WriteString(fmt.Sprintf(`<script>setTimeout(function(){window.location.href="%s";},2000);</script>`, nextUrl))
 			}
 			resp.Body = ioutil.NopCloser(bytes.NewReader(buf.Bytes()))
-
-			go func() {
-				p.Output()
-			}()
 		}
 		return resp
 	}
