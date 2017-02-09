@@ -36,7 +36,7 @@ func (c *CustomProcessor) Output() {
 		}
 		bs, _ := ioutil.ReadAll(resp.Body)
 		mp := map[string]interface{}{
-			"url":  u,
+			"url":  result.Url,
 			"data": string(bs),
 		}
 		bs, _ = json.Marshal(mp)
