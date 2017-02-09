@@ -135,6 +135,10 @@ func (p *BaseProcessor) Result() []*WechatResult {
 	return p.result
 }
 
+func (p *BaseProcessor) GetRequest() *http.Request {
+	return p.req
+}
+
 func (p *BaseProcessor) Output() {
 	urls := []string{}
 	fmt.Println("result => [")
