@@ -9,9 +9,13 @@ import (
 
 func main() {
 	var port = "8899"
+	spider.InitConfig(&spider.Config{
+		Verbose:    false, // Open to see detail logs
+		AutoScroll: false, // Open to crawl scroll pages
+		Metrics:    true,
+	})
 	spider.Regist(&CustomProcessor{})
 	spider.Run(port)
-
 }
 
 //Just to implement Output Method of interface{} Processor
@@ -20,12 +24,12 @@ type CustomProcessor struct {
 }
 
 func (c *CustomProcessor) Output() {
-	urls := []string{}
-	for _, r := range c.UrlResults() {
-		urls = append(urls, r.Url)
+	switch c.Type {
+	case spider.TypeDetail:
+		fmt.Printf("url %s size ==> %#v\n", c.DetailResult().Url, len(c.DetailResult().Data))
+	case spider.TypeMetric:
+		fmt.Printf("%#v\n", c.DetailResult().Appmsgstat)
 	}
-	fmt.Printf("%#v\n", urls)
-	// You can dump the get the html from urls and save to your database
 }
 
 // NextBiz hijack the script, set the location to next url after 2 seconds
