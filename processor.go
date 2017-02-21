@@ -114,14 +114,23 @@ func (p *BaseProcessor) ProcessList(resp *http.Response, ctx *goproxy.ProxyCtx) 
 		}
 	}
 
+	cacheLock.Lock()
+	defer cacheLock.Unlock()
 	for _, r := range p.urlResults {
 		r._URL, _ = url.Parse(r.Url)
+		if r._URL != nil {
+			cacheResult[r._URL.Query().Get("__biz")+"_"+r._URL.Query().Get("mid")] = &DetailResult{
+				Url:        r.Url,
+				Appmsgstat: &MsgStat{},
+			}
+		}
 	}
 	return
 }
 
 func (p *BaseProcessor) ProcessDetail(resp *http.Response, ctx *goproxy.ProxyCtx) (data []byte, err error) {
 	p.Type = TypeDetail
+	p.req = ctx.Req
 	p.currentIndex++
 	var buf bytes.Buffer
 	if _, err = buf.ReadFrom(resp.Body); err != nil {
@@ -131,17 +140,22 @@ func (p *BaseProcessor) ProcessDetail(resp *http.Response, ctx *goproxy.ProxyCtx
 		return
 	}
 	data = buf.Bytes()
-	p.detailResult = &DetailResult{
-		Url:        ctx.Req.URL.RequestURI(),
-		Data:       data,
-		Appmsgstat: &MsgStat{},
+
+	result := cacheResult[genKey(p.req.URL)]
+	if result == nil {
+		result = &DetailResult{}
+		cacheLock.Lock()
+		defer cacheLock.Unlock()
+		cacheResult[genKey(p.req.URL)] = result
 	}
-	println("aaa=>", p.detailResult.Url, len(data))
+	result.Data = data
 	return
 }
 
 func (p *BaseProcessor) ProcessMetrics(resp *http.Response, ctx *goproxy.ProxyCtx) (data []byte, err error) {
 	p.Type = TypeMetric
+	p.req = ctx.Req
+
 	var buf bytes.Buffer
 	if _, err = buf.ReadFrom(resp.Body); err != nil {
 		return
@@ -156,7 +170,7 @@ func (p *BaseProcessor) ProcessMetrics(resp *http.Response, ctx *goproxy.ProxyCt
 		p.logf("error in parsing json %s\n", string(data))
 	}
 	//must be not nil
-	result := cacheResult[ctx.Req.URL.Query().Get("__biz")+"_"+ctx.Req.URL.Query().Get("mid")]
+	result := cacheResult[genKey(p.req.URL)]
 	if result == nil {
 		result = &DetailResult{}
 	}
@@ -171,7 +185,7 @@ func (p *BaseProcessor) NextBiz(currentBiz string) string {
 
 func (p *BaseProcessor) NextUrl() string {
 	if p.currentIndex+1 < len(p.urlResults) {
-		return p.urlResults[p.currentIndex+1].Url
+		return p.urlResults[p.currentIndex+1].Url + "&ttt=1111"
 	}
 	return ""
 }
@@ -282,6 +296,10 @@ func (p *BaseProcessor) genPageUrl() string {
 	urlStr := "http://mp.weixin.qq.com/mp/getmasssendmsg?" + p.req.URL.RawQuery
 	urlStr += "&frommsgid=" + p.lastId + "&f=json&count=100"
 	return urlStr
+}
+
+func genKey(uri *url.URL) string {
+	return uri.Query().Get("__biz") + "_" + uri.Query().Get("mid")
 }
 
 func (P *BaseProcessor) logf(format string, msg ...interface{}) {

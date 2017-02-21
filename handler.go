@@ -2,13 +2,15 @@ package wechat_spider
 
 import (
 	"bytes"
+	"crypto/md5"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"reflect"
-	"strings"
+	"sync"
 
 	"github.com/elazarl/goproxy"
 )
@@ -17,11 +19,12 @@ var (
 	Logger      = log.New(os.Stderr, "", log.LstdFlags)
 	procs       = make(map[string]Processor, 10)
 	cacheResult = make(map[string]*DetailResult)
+	cacheLock   sync.Mutex
 )
 
 func ProxyHandle(proc Processor) func(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
 	return func(resp *http.Response, ctx *goproxy.ProxyCtx) *http.Response {
-		if resp.StatusCode != 200 {
+		if resp == nil || resp.StatusCode != 200 {
 			return resp
 		}
 		if rootConfig.Verbose {
@@ -55,7 +58,7 @@ func handleList(resp *http.Response, ctx *goproxy.ProxyCtx, proc Processor) {
 		curBiz := ctx.Req.URL.Query().Get("__biz")
 		nextBiz := p.NextBiz(curBiz)
 		if nextBiz != "" {
-			nextUrl = strings.Replace(p.HistoryUrl(), curBiz, nextBiz, -1)
+			nextUrl = fmt.Sprintf("http://mp.weixin.qq.com/mp/getmasssendmsg?__biz=%s#wechat_webview_type=1&wechat_redirect", nextBiz)
 		}
 	}
 	var buf = bytes.NewBuffer(data)
@@ -64,6 +67,7 @@ func handleList(resp *http.Response, ctx *goproxy.ProxyCtx, proc Processor) {
 		println("nexturl list==>", nextUrl)
 		buf.WriteString(fmt.Sprintf(`<script>setTimeout(function(){window.location.href="%s";},2000);</script>`, nextUrl))
 	}
+	saveProcessor(ctx.Req, p)
 	resp.Body = ioutil.NopCloser(bytes.NewReader(buf.Bytes()))
 }
 
@@ -77,11 +81,12 @@ func handleDetail(resp *http.Response, ctx *goproxy.ProxyCtx, proc Processor) {
 	}
 	// When fetch metrics, list page output could be ingore
 	var nextUrl = p.NextUrl()
+	println("nextulr=>", nextUrl)
 	if !needDetail || nextUrl == "" {
 		curBiz := ctx.Req.URL.Query().Get("__biz")
 		nextBiz := p.NextBiz(curBiz)
 		if nextBiz != "" {
-			nextUrl = strings.Replace(p.HistoryUrl(), curBiz, nextBiz, -1)
+			nextUrl = fmt.Sprintf("http://mp.weixin.qq.com/mp/getmasssendmsg?__biz=%s#wechat_webview_type=1&wechat_redirect", nextBiz)
 		}
 	}
 	var buf = bytes.NewBuffer(data)
@@ -108,7 +113,9 @@ func handleMetrics(resp *http.Response, ctx *goproxy.ProxyCtx, proc Processor) {
 
 // get the processor from cache
 func getProcessor(req *http.Request, proc Processor) Processor {
-	key := req.Header.Get("q-guid")
+	key := hashKey(req.Header.Get("q-guid"))
+	println("get==>", key)
+
 	if p, ok := procs[key]; ok {
 		return p
 	}
@@ -116,13 +123,19 @@ func getProcessor(req *http.Request, proc Processor) Processor {
 	t := reflect.TypeOf(proc)
 	v := reflect.New(t.Elem())
 	p := v.Interface().(Processor)
-	//set
-	procs[key] = p
-
 	return p
 }
 
 func saveProcessor(req *http.Request, proc Processor) {
-	key := req.Header.Get("x-wechat-uin") + req.UserAgent()
+	key := hashKey(req.Header.Get("q-guid"))
+	println("save==>", key)
+	cacheLock.Lock()
+	defer cacheLock.Unlock()
 	procs[key] = proc
+}
+
+func hashKey(key string) string {
+	h := md5.New()
+	io.WriteString(h, key)
+	return fmt.Sprintf("%x", h.Sum(nil))
 }
