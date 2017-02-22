@@ -2,9 +2,11 @@ package wechat_spider
 
 import (
 	"bytes"
+	"crypto/md5"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -23,7 +25,7 @@ type Processor interface {
 	NextBiz(currentBiz string) string
 	HistoryUrl() string
 	Output()
-	NextUrl() string
+	NextUrl(currentUrl string) string
 }
 
 type BaseProcessor struct {
@@ -49,6 +51,7 @@ type (
 		_URL *url.URL
 	}
 	DetailResult struct {
+		Id         string
 		Url        string
 		Data       []byte
 		Appmsgstat *MsgStat `json:"appmsgstat"`
@@ -67,7 +70,7 @@ var (
 		`\\`, "", "&amp;amp;", "&",
 		"&amp;", "&", `\`, "",
 	)
-	urlRegex    = regexp.MustCompile("http://mp.weixin.qq.com/s?[^#]*")
+	urlRegex    = regexp.MustCompile(`http://mp.weixin.qq.com/s?[^#"',]*`)
 	idRegex     = regexp.MustCompile(`"id":(\d+)`)
 	MsgNotFound = errors.New("MsgLists not found")
 
@@ -113,18 +116,6 @@ func (p *BaseProcessor) ProcessList(resp *http.Response, ctx *goproxy.ProxyCtx) 
 			return
 		}
 	}
-
-	cacheLock.Lock()
-	defer cacheLock.Unlock()
-	for _, r := range p.urlResults {
-		r._URL, _ = url.Parse(r.Url)
-		if r._URL != nil {
-			cacheResult[r._URL.Query().Get("__biz")+"_"+r._URL.Query().Get("mid")] = &DetailResult{
-				Url:        r.Url,
-				Appmsgstat: &MsgStat{},
-			}
-		}
-	}
 	return
 }
 
@@ -140,18 +131,7 @@ func (p *BaseProcessor) ProcessDetail(resp *http.Response, ctx *goproxy.ProxyCtx
 		return
 	}
 	data = buf.Bytes()
-
-	result := cacheResult[genKey(p.req.URL)]
-	if result == nil {
-		result = &DetailResult{}
-		cacheLock.Lock()
-		defer cacheLock.Unlock()
-		cacheResult[genKey(p.req.URL)] = result
-	}
-	result.Url = p.req.URL.String()
-	result.Data = data
-
-	p.detailResult = result
+	p.detailResult = &DetailResult{Id: genId(p.req.URL.String()), Url: p.req.URL.String(), Data: data}
 	return
 }
 
@@ -172,13 +152,10 @@ func (p *BaseProcessor) ProcessMetrics(resp *http.Response, ctx *goproxy.ProxyCt
 	if e != nil {
 		p.logf("error in parsing json %s\n", string(data))
 	}
-	//must be not nil
-	result := cacheResult[genKey(p.req.URL)]
-	if result == nil {
-		result = &DetailResult{}
-	}
-	result.Appmsgstat = detailResult.Appmsgstat
-	p.detailResult = result
+	detailResult.Url = p.req.Referer()
+	detailResult.Id = genId(detailResult.Url)
+	p.detailResult = detailResult
+
 	return
 }
 
@@ -186,10 +163,7 @@ func (p *BaseProcessor) NextBiz(currentBiz string) string {
 	return ""
 }
 
-func (p *BaseProcessor) NextUrl() string {
-	if p.currentIndex+1 < len(p.urlResults) {
-		return p.urlResults[p.currentIndex+1].Url + "&ttt=1111"
-	}
+func (p *BaseProcessor) NextUrl(currentUrl string) string {
 	return ""
 }
 
@@ -301,8 +275,15 @@ func (p *BaseProcessor) genPageUrl() string {
 	return urlStr
 }
 
-func genKey(uri *url.URL) string {
+func genId(urlStr string) string {
+	uri, _ := url.ParseRequestURI(urlStr)
 	return hashKey(uri.Query().Get("__biz") + "_" + uri.Query().Get("mid") + "_" + uri.Query().Get("idx"))
+}
+
+func hashKey(key string) string {
+	h := md5.New()
+	io.WriteString(h, key)
+	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
 func (P *BaseProcessor) logf(format string, msg ...interface{}) {
