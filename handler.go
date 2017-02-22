@@ -51,10 +51,9 @@ func handleList(resp *http.Response, ctx *goproxy.ProxyCtx, proc Processor) {
 	if err != nil {
 		log.Println(err.Error())
 	}
-	// When fetch metrics, list page output could be ingore
+	go p.Output()
 	var nextUrl = p.NextUrl()
 	if !needDetail || nextUrl == "" {
-		go p.Output()
 		curBiz := ctx.Req.URL.Query().Get("__biz")
 		nextBiz := p.NextBiz(curBiz)
 		if nextBiz != "" {
@@ -81,7 +80,6 @@ func handleDetail(resp *http.Response, ctx *goproxy.ProxyCtx, proc Processor) {
 	}
 	// When fetch metrics, list page output could be ingore
 	var nextUrl = p.NextUrl()
-	println("nextulr=>", nextUrl)
 	if !needDetail || nextUrl == "" {
 		curBiz := ctx.Req.URL.Query().Get("__biz")
 		nextBiz := p.NextBiz(curBiz)
@@ -92,7 +90,6 @@ func handleDetail(resp *http.Response, ctx *goproxy.ProxyCtx, proc Processor) {
 	var buf = bytes.NewBuffer(data)
 
 	if nextUrl != "" {
-		println("nexturl detail==>", nextUrl)
 		buf.WriteString(fmt.Sprintf(`<script>setTimeout(function(){window.location.href="%s";},2000);</script>`, nextUrl))
 	}
 	go p.Output()
@@ -108,13 +105,13 @@ func handleMetrics(resp *http.Response, ctx *goproxy.ProxyCtx, proc Processor) {
 		Logger.Println(err.Error())
 	}
 	go p.Output()
+	saveProcessor(ctx.Req, p)
 	resp.Body = ioutil.NopCloser(bytes.NewReader(data))
 }
 
 // get the processor from cache
 func getProcessor(req *http.Request, proc Processor) Processor {
 	key := hashKey(req.Header.Get("q-guid"))
-	println("get==>", key)
 
 	if p, ok := procs[key]; ok {
 		return p
@@ -128,9 +125,12 @@ func getProcessor(req *http.Request, proc Processor) Processor {
 
 func saveProcessor(req *http.Request, proc Processor) {
 	key := hashKey(req.Header.Get("q-guid"))
-	println("save==>", key)
 	cacheLock.Lock()
 	defer cacheLock.Unlock()
+	if proc == nil {
+		delete(procs, key)
+		return
+	}
 	procs[key] = proc
 }
 

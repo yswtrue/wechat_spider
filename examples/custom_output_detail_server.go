@@ -25,10 +25,13 @@ type CustomProcessor struct {
 
 func (c *CustomProcessor) Output() {
 	switch c.Type {
+	case spider.TypeList:
+		//do nothing
+		fmt.Printf("url size ==> %#v\n", len(c.UrlResults()))
 	case spider.TypeDetail:
-		fmt.Printf("url %s size ==> %#v\n", c.DetailResult().Url, len(c.DetailResult().Data))
+		fmt.Printf("url %s is being spidered\n", c.DetailResult().Url)
 	case spider.TypeMetric:
-		fmt.Printf("%#v\n", c.DetailResult().Appmsgstat)
+		fmt.Printf("url %s metric %#v is being spidered\n", c.DetailResult().Url, c.DetailResult().Appmsgstat)
 	}
 }
 

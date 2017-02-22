@@ -85,7 +85,7 @@ func (p *BaseProcessor) init(req *http.Request, data []byte) (err error) {
 	p.data = data
 	p.currentIndex = -1
 	p.biz = req.URL.Query().Get("__biz")
-	p.historyUrl = req.URL.RequestURI()
+	p.historyUrl = req.URL.String()
 	fmt.Println("Running a new wechat processor, please wait...")
 	return nil
 }
@@ -148,7 +148,10 @@ func (p *BaseProcessor) ProcessDetail(resp *http.Response, ctx *goproxy.ProxyCtx
 		defer cacheLock.Unlock()
 		cacheResult[genKey(p.req.URL)] = result
 	}
+	result.Url = p.req.URL.String()
 	result.Data = data
+
+	p.detailResult = result
 	return
 }
 
@@ -299,7 +302,7 @@ func (p *BaseProcessor) genPageUrl() string {
 }
 
 func genKey(uri *url.URL) string {
-	return uri.Query().Get("__biz") + "_" + uri.Query().Get("mid")
+	return hashKey(uri.Query().Get("__biz") + "_" + uri.Query().Get("mid") + "_" + uri.Query().Get("idx"))
 }
 
 func (P *BaseProcessor) logf(format string, msg ...interface{}) {
