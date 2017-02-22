@@ -2,9 +2,11 @@ package wechat_spider
 
 import (
 	"bytes"
+	"crypto/md5"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -17,44 +19,47 @@ import (
 )
 
 type Processor interface {
-	// Core method
-	Process(resp *http.Response, ctx *goproxy.ProxyCtx) ([]byte, error)
-	// NextBiz
+	ProcessList(resp *http.Response, ctx *goproxy.ProxyCtx) ([]byte, error)
+	ProcessDetail(resp *http.Response, ctx *goproxy.ProxyCtx) ([]byte, error)
+	ProcessMetrics(resp *http.Response, ctx *goproxy.ProxyCtx) ([]byte, error)
 	NextBiz(currentBiz string) string
-	// Result urls
-	Result() []*WechatResult
-	// Output
+	HistoryUrl() string
 	Output()
-	// Sleep method to avoid the req control of wechat
-	Sleep()
+	NextUrl(currentUrl string) string
 }
 
 type BaseProcessor struct {
-	req    *http.Request
-	lastId string
-	data   []byte
-	result []*WechatResult
+	req          *http.Request
+	lastId       string
+	data         []byte
+	urlResults   []*UrlResult
+	detailResult *DetailResult
+	historyUrl   string
+	biz          string
+
+	// The index of urls for detail page
+	currentIndex int
+
+	Type string
 }
 
 type (
-	WechatResult struct {
+	UrlResult struct {
 		Mid string
 		// url
-		Url string
-
+		Url  string
 		_URL *url.URL
-
-		// Three below is TODO
-		Data       string
+	}
+	DetailResult struct {
+		Id         string
+		Url        string
+		Data       []byte
 		Appmsgstat *MsgStat `json:"appmsgstat"`
-		Comments   []*Comment
 	}
 	MsgStat struct {
 		ReadNum     int `json:"read_num"`
 		LikeNum     int `json:"like_num"`
 		RealReadNum int `json:"real_read_num"`
-	}
-	Comment struct {
 	}
 )
 
@@ -65,10 +70,13 @@ var (
 		`\\`, "", "&amp;amp;", "&",
 		"&amp;", "&", `\`, "",
 	)
-
-	urlRegex    = regexp.MustCompile("http://mp.weixin.qq.com/s?[^#]*")
+	urlRegex    = regexp.MustCompile(`http://mp.weixin.qq.com/s?[^#"',]*`)
 	idRegex     = regexp.MustCompile(`"id":(\d+)`)
 	MsgNotFound = errors.New("MsgLists not found")
+
+	TypeList   = "list"
+	TypeDetail = "detail"
+	TypeMetric = "metric"
 )
 
 func NewBaseProcessor() *BaseProcessor {
@@ -78,11 +86,14 @@ func NewBaseProcessor() *BaseProcessor {
 func (p *BaseProcessor) init(req *http.Request, data []byte) (err error) {
 	p.req = req
 	p.data = data
+	p.currentIndex = -1
+	p.biz = req.URL.Query().Get("__biz")
+	p.historyUrl = req.URL.String()
 	fmt.Println("Running a new wechat processor, please wait...")
 	return nil
 }
-func (p *BaseProcessor) Process(resp *http.Response, ctx *goproxy.ProxyCtx) (data []byte, err error) {
-
+func (p *BaseProcessor) ProcessList(resp *http.Response, ctx *goproxy.ProxyCtx) (data []byte, err error) {
+	p.Type = TypeList
 	var buf bytes.Buffer
 	if _, err = buf.ReadFrom(resp.Body); err != nil {
 		return
@@ -105,21 +116,46 @@ func (p *BaseProcessor) Process(resp *http.Response, ctx *goproxy.ProxyCtx) (dat
 			return
 		}
 	}
+	return
+}
 
-	//gen id
-	for _, r := range p.result {
-		r._URL, _ = url.Parse(r.Url)
+func (p *BaseProcessor) ProcessDetail(resp *http.Response, ctx *goproxy.ProxyCtx) (data []byte, err error) {
+	p.Type = TypeDetail
+	p.req = ctx.Req
+	p.currentIndex++
+	var buf bytes.Buffer
+	if _, err = buf.ReadFrom(resp.Body); err != nil {
+		return
 	}
+	if err = resp.Body.Close(); err != nil {
+		return
+	}
+	data = buf.Bytes()
+	p.detailResult = &DetailResult{Id: genId(p.req.URL.String()), Url: p.req.URL.String(), Data: data}
+	return
+}
 
-	// TODO
-	if rootConfig.Metrics {
-		for _, r := range p.Result() {
-			err = p.processStat(r)
-			if err != nil {
-				println(err.Error())
-			}
-		}
+func (p *BaseProcessor) ProcessMetrics(resp *http.Response, ctx *goproxy.ProxyCtx) (data []byte, err error) {
+	p.Type = TypeMetric
+	p.req = ctx.Req
+
+	var buf bytes.Buffer
+	if _, err = buf.ReadFrom(resp.Body); err != nil {
+		return
 	}
+	if err = resp.Body.Close(); err != nil {
+		return
+	}
+	data = buf.Bytes()
+	detailResult := &DetailResult{}
+	e := json.Unmarshal(data, detailResult)
+	if e != nil {
+		p.logf("error in parsing json %s\n", string(data))
+	}
+	detailResult.Url = p.req.Referer()
+	detailResult.Id = genId(detailResult.Url)
+	p.detailResult = detailResult
+
 	return
 }
 
@@ -127,12 +163,24 @@ func (p *BaseProcessor) NextBiz(currentBiz string) string {
 	return ""
 }
 
+func (p *BaseProcessor) NextUrl(currentUrl string) string {
+	return ""
+}
+
+func (p *BaseProcessor) HistoryUrl() string {
+	return p.historyUrl
+}
+
 func (p *BaseProcessor) Sleep() {
 	time.Sleep(50 * time.Millisecond)
 }
 
-func (p *BaseProcessor) Result() []*WechatResult {
-	return p.result
+func (p *BaseProcessor) UrlResults() []*UrlResult {
+	return p.urlResults
+}
+
+func (p *BaseProcessor) DetailResult() *DetailResult {
+	return p.detailResult
 }
 
 func (p *BaseProcessor) GetRequest() *http.Request {
@@ -142,7 +190,7 @@ func (p *BaseProcessor) GetRequest() *http.Request {
 func (p *BaseProcessor) Output() {
 	urls := []string{}
 	fmt.Println("result => [")
-	for _, r := range p.result {
+	for _, r := range p.urlResults {
 		urls = append(urls, r.Url)
 	}
 	fmt.Println(strings.Join(urls, ","))
@@ -151,7 +199,7 @@ func (p *BaseProcessor) Output() {
 
 //Parse the html
 func (p *BaseProcessor) processMain() error {
-	p.result = make([]*WechatResult, 0, 100)
+	p.urlResults = make([]*UrlResult, 0, 100)
 	buffer := bytes.NewBuffer(p.data)
 	var msgs string
 	str, err := buffer.ReadString('\n')
@@ -170,9 +218,9 @@ func (p *BaseProcessor) processMain() error {
 	if len(urls) < 1 {
 		return stacktrace.Propagate(MsgNotFound, "Failed find url in  main")
 	}
-	p.result = make([]*WechatResult, len(urls))
+	p.urlResults = make([]*UrlResult, len(urls))
 	for i, u := range urls {
-		p.result[i] = &WechatResult{Url: u}
+		p.urlResults[i] = &UrlResult{Url: u}
 	}
 
 	idMatcher := idRegex.FindAllStringSubmatch(msgs, -1)
@@ -212,36 +260,11 @@ func (p *BaseProcessor) processPages() (err error) {
 	p.lastId = idMatcher[len(idMatcher)-1][1]
 	p.logf("Page Get => %d,lastid: %s", len(result), p.lastId)
 	for _, u := range result {
-		p.result = append(p.result, &WechatResult{Url: u})
+		p.urlResults = append(p.urlResults, &UrlResult{Url: u})
 	}
 	if p.lastId != "" {
 		p.Sleep()
 		return p.processPages()
-	}
-	return nil
-}
-
-func (p *BaseProcessor) processStat(r *WechatResult) (err error) {
-	mid := r._URL.Query().Get("mid")
-	statUrl := p.genStatUrl(mid)
-	println("==>", statUrl)
-	req, err := http.NewRequest("POST", statUrl, nil)
-	if err != nil {
-		return stacktrace.Propagate(err, "Failed new stat request")
-	}
-	for k, _ := range p.req.Header {
-		req.Header.Set(k, p.req.Header.Get(k))
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return stacktrace.Propagate(err, "Failed get stat response")
-	}
-	bs, _ := ioutil.ReadAll(resp.Body)
-	println(string(bs))
-	defer resp.Body.Close()
-	err = json.Unmarshal(bs, r)
-	if err != nil {
-		return stacktrace.Propagate(err, "Failed get unmarshel stats")
 	}
 	return nil
 }
@@ -252,18 +275,15 @@ func (p *BaseProcessor) genPageUrl() string {
 	return urlStr
 }
 
-func (p *BaseProcessor) genStatUrl(mid string) string {
-	urlStr := "http://mp.weixin.qq.com/mp/getappmsgext?" + p.req.URL.RawQuery
+func genId(urlStr string) string {
+	uri, _ := url.ParseRequestURI(urlStr)
+	return hashKey(uri.Query().Get("__biz") + "_" + uri.Query().Get("mid") + "_" + uri.Query().Get("idx"))
+}
 
-	values := url.Values{}
-	values.Add("mid", mid)
-	values.Add("comment_id", "111")
-	values.Add("devicetype", "android-22")
-	values.Add("version", "/mmbizwap/zh_CN/htmledition/js/appmsg/index32e586.js")
-	values.Add("f", "json")
-
-	urlStr += "&" + values.Encode()
-	return urlStr
+func hashKey(key string) string {
+	h := md5.New()
+	io.WriteString(h, key)
+	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
 func (P *BaseProcessor) logf(format string, msg ...interface{}) {

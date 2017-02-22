@@ -8,8 +8,7 @@ import (
 )
 
 type spider struct {
-	proxy  *goproxy.ProxyHttpServer
-	config *Config
+	proxy *goproxy.ProxyHttpServer
 }
 
 var _spider = newSpider()

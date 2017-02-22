@@ -17,7 +17,6 @@ func main() {
 	})
 	spider.Regist(&CustomProcessor{})
 	spider.Run(port)
-
 }
 
 //Just to implement Output Method of interface{} Processor
@@ -28,7 +27,7 @@ type CustomProcessor struct {
 func (c *CustomProcessor) Output() {
 	// You can write the result to files
 	f, _ := os.OpenFile("result.jsons", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0660)
-	for _, result := range c.Result() {
+	for _, result := range c.UrlResults() {
 		resp, err := http.Get(result.Url)
 		if err != nil {
 			println(err.Error())

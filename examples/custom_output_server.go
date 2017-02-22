@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"math/rand"
 
 	spider "github.com/sundy-li/wechat_spider"
@@ -19,8 +20,11 @@ type CustomProcessor struct {
 }
 
 func (c *CustomProcessor) Output() {
-	// Just print the length of result urls
-	println("result urls size =>", len(c.Result()))
+	urls := []string{}
+	for _, r := range c.UrlResults() {
+		urls = append(urls, r.Url)
+	}
+	fmt.Printf("%#v\n", urls)
 	// You can dump the get the html from urls and save to your database
 }
 
