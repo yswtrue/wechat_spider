@@ -42,11 +42,13 @@ func main() {
 
 * 上面贴的是一个精简的服务端,拦截客户端请求,将微信文章url打印到终端
 * 如果想自定义输出源以及实现批量自动化爬取,可以实现`Processor`接口的`Output`和`NextBiz`方法, 参考  [custom_output_server.go][2]
+* 抓取阅读数,点赞数请实现NextUrl方法,参考[custom_output_detail_server.go][4]
 
 
 [1]: https://github.com/sundy-li/wechat_spider/blob/master/examples/simple_server.go
 [2]: https://github.com/sundy-li/wechat_spider/blob/master/examples/custom_output_server.go
 [3]: https://github.com/sundy-li/wechat_spider/blob/master/docs/FAQ.md
+[4]: https://github.com/sundy-li/wechat_spider/blob/master/examples/custom_output_detail_server.go
 
 * 微信会屏蔽频繁的请求,所以历史文章的翻页请求调用了Sleep()方法, 默认每个请求休眠50ms,可以根据实际情况自定义Processor覆盖此方法
 
@@ -74,4 +76,5 @@ func main() {
   3. 在examples目录下面, 执行 python win_client.py 将自动生成链接,模拟点击
 
 ## TODO
-* 点赞数,阅读数,评论数等文章指标
+* ~~点赞数,阅读数~~  ← Complete!
+* 评论(我个人觉得这个东西是没什么意义的)

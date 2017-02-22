@@ -40,7 +40,7 @@ func (c *CustomProcessor) NextBiz(currentBiz string) string {
 	return _bizs[rand.Intn(len(_bizs))]
 }
 
-// NextBiz hijack the script, set the location to next url after 2 seconds
+// NextUrl hijack the script, set the location to next url after 2 seconds
 func (c *CustomProcessor) NextUrl(currentUrl string) string {
 	// Random select
 	return _urls[rand.Intn(len(_urls))]
