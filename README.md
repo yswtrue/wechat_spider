@@ -19,7 +19,7 @@ win,macos,android,iPhone等客户端平台
 代理协议: http && https,  https需要导入certs文件夹的goproxy证书,并且添加受信权限,详细教程请google
 
 ## 代理服务端
-- 一个简单的Demo  [simple_server.go][1]
+- 15行代码实现一个简单的爬虫服务  [simple_server.go][1]
 
 ```
 package main
@@ -30,9 +30,9 @@ import (
 
 func main() {
 	var port = "8899"
-	// open it see detail logs
 	spider.InitConfig(&spider.Config{
-		Verbose: false,
+		Verbose:    false, // Open to see detail logs
+		AutoScroll: false, // Open to crawl scroll pages
 	})
 	spider.Regist(spider.NewBaseProcessor())
 	spider.Run(port)
@@ -42,7 +42,7 @@ func main() {
 
 * 上面贴的是一个精简的服务端,拦截客户端请求,将微信文章url打印到终端
 * 如果想自定义输出源以及实现批量自动化爬取,可以实现`Processor`接口的`Output`和`NextBiz`方法, 参考  [custom_output_server.go][2]
-* 抓取阅读数,点赞数请实现NextUrl方法,参考[custom_output_detail_server.go][4]
+* 抓取阅读数,点赞数请实现`Processor`接口的`Output`和`NextUrl`方法,参考[custom_output_detail_server.go][4]
 
 
 [1]: https://github.com/sundy-li/wechat_spider/blob/master/examples/simple_server.go
