@@ -55,7 +55,7 @@ func handleList(resp *http.Response, ctx *goproxy.ProxyCtx, proc Processor) {
 	}
 	var buf = bytes.NewBuffer(data)
 	if nextUrl != "" {
-		buf.WriteString(fmt.Sprintf(`<script>setTimeout(function(){window.location.href="%s";},2000);</script>`, nextUrl))
+		buf.WriteString(fmt.Sprintf(`<script>window.onbeforeunload = localStorage.clear();setTimeout(function(){window.location.href="%s";},2000);</script>`, nextUrl))
 	}
 	resp.Body = ioutil.NopCloser(bytes.NewReader(buf.Bytes()))
 }
@@ -71,7 +71,7 @@ func handleDetail(resp *http.Response, ctx *goproxy.ProxyCtx, proc Processor) {
 	var nextUrl = p.NextUrl(ctx.Req.URL.String())
 	var buf = bytes.NewBuffer(data)
 	if nextUrl != "" {
-		buf.WriteString(fmt.Sprintf(`<script>setTimeout(function(){window.location.href="%s";},2000);</script>`, nextUrl))
+		buf.WriteString(fmt.Sprintf(`<script>window.onbeforeunload = localStorage.clear();setTimeout(function(){window.location.href="%s";},2000);</script>`, nextUrl))
 	}
 	go p.Output()
 	resp.Body = ioutil.NopCloser(bytes.NewReader(buf.Bytes()))
